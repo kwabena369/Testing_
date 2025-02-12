@@ -1,4 +1,4 @@
-name: Debug CI/CD Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -7,8 +7,22 @@ on:
     branches: [main]
 
 jobs:
-  debug-structure:
+  test-and-build:
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    strategy:
+      matrix:
+        node-version: [18.x]
 
     steps:
       - name: Checkout code
@@ -17,20 +31,107 @@ jobs:
       - name: List directory contents
         run: ls -R
 
-      - name: Verify backend directory
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Install dependencies
+      - name: Install Backend Dependencies
+        working-directory: Backend
         run: |
-          if [ -d "backend" ]; then
-            echo "Backend directory exists."
-            ls -R backend
+          npm install
+          npm install eslint --save-dev
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm install
+
+      # Setup caching
+      - name: Cache Backend Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ./Backend/node_modules
+          key: ${{ runner.os }}-backend-${{ hashFiles('./Backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-
+
+      - name: Cache Frontend Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ./frontend/node_modules
+          key: ${{ runner.os }}-frontend-${{ hashFiles('./frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-
+
+      - name: Run Backend Tests
+        working-directory: Backend
+        run: |
+          npm run test
+        env:
+          DB_HOST: localhost
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: test_db
+
+      - name: Run Backend Linting
+        working-directory: Backend
+        run: npx eslint .
+
+      - name: Run Frontend Tests
+        working-directory: frontend
+        run: |
+          if npm run | grep -q "test"; then
+            npm run test
           else
-            echo "Backend directory does not exist."
+            echo "No test script found in package.json. Skipping tests..."
           fi
 
-      - name: Verify frontend directory
+      - name: Run Frontend Type Check
+        working-directory: frontend
+        run: npm run typescript:check
+
+      - name: Run Frontend Linting
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build Backend
+        working-directory: Backend
+        run: npm run build
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            frontend/dist
+            Backend/dist
+          key: ${{ runner.os }}-build-${{ github.sha }}
+
+  deploy:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            frontend/dist
+            Backend/dist
+          key: ${{ runner.os }}-build-${{ github.sha }}
+
+      - name: Deploy to production
         run: |
-          if [ -d "frontend" ]; then
-            echo "Frontend directory exists."
-            ls -R frontend
-          else
-            echo "Frontend directory does not exist."
-          fi
+          echo "Deploying to production..."
+          # Add your deployment steps here based on your hosting platform
+        env:
+          NODE_ENV: production
