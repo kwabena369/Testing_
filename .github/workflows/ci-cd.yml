@@ -28,6 +28,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Install dependencies before setting up Node.js to ensure lock files are present
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: |
+          npm install
+          npm install eslint --save-dev
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      # Now set up Node.js with the lock files in place
       - name: Setup Node.js for Backend
         uses: actions/setup-node@v3
         with:
@@ -41,16 +53,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: './frontend/package-lock.json'
-
-      - name: Install Backend Dependencies
-        working-directory: ./backend
-        run: |
-          npm ci
-          npm install eslint --save-dev
-
-      - name: Install Frontend Dependencies
-        working-directory: ./frontend
-        run: npm ci
 
       - name: Run Backend Tests
         working-directory: ./backend
@@ -116,8 +118,6 @@ jobs:
         run: |
           echo "Deploying to production..."
           # Add your deployment steps here based on your hosting platform
-          # Examples:
-          # - AWS Elastic Beanstalk deployment
-          # - Vercel deployment
-          # - Digital Ocean deployment
-  
+        env:
+          # Add any necessary deployment credentials/tokens here
+          NODE_ENV: production
