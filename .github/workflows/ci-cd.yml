@@ -28,64 +28,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Debug - List Files
-        run: ls -la
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
 
-      # Install Backend Dependencies (if backend exists)
+      # Install dependencies
       - name: Install Backend Dependencies
+        working-directory: ./backend
         run: |
-          if [ -d "backend" ]; then
-            cd backend
-            npm install
-            npm install eslint --save-dev
-          else
-            echo "Backend folder not found! Skipping..."
-          fi
+          npm install
+          npm install eslint --save-dev
 
-      # Install Frontend Dependencies (if frontend exists)
       - name: Install Frontend Dependencies
-        run: |
-          if [ -d "frontend" ]; then
-            cd frontend
-            npm install
-          else
-            echo "Frontend folder not found! Skipping..."
-          fi
+        working-directory: ./frontend
+        run: npm install
 
-      # Cache Backend Dependencies (only if backend exists)
+      # Setup caching
       - name: Cache Backend Dependencies
-        if: hashFiles('backend/package-lock.json') != ''
         uses: actions/cache@v3
         with:
-          path: backend/node_modules
-          key: ${{ runner.os }}-backend-${{ hashFiles('backend/package-lock.json') }}
+          path: ./backend/node_modules
+          key: ${{ runner.os }}-backend-${{ hashFiles('./backend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-backend-
 
-      # Cache Frontend Dependencies (only if frontend exists)
       - name: Cache Frontend Dependencies
-        if: hashFiles('frontend/package-lock.json') != ''
         uses: actions/cache@v3
         with:
-          path: frontend/node_modules
-          key: ${{ runner.os }}-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          path: ./frontend/node_modules
+          key: ${{ runner.os }}-frontend-${{ hashFiles('./frontend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-frontend-
 
-      # Run Backend Tests (if backend exists)
       - name: Run Backend Tests
+        working-directory: ./backend
         run: |
-          if [ -d "backend" ]; then
-            cd backend
-            npm run test
-          else
-            echo "Backend folder not found! Skipping tests..."
-          fi
+          npm run test
         env:
           DB_HOST: localhost
           DB_PORT: 3306
@@ -93,68 +72,36 @@ jobs:
           DB_PASSWORD: root
           DB_NAME: test_db
 
-      # Run Backend Linting (if backend exists)
       - name: Run Backend Linting
-        run: |
-          if [ -d "backend" ]; then
-            cd backend
-            npx eslint .
-          else
-            echo "Backend folder not found! Skipping linting..."
-          fi
+        working-directory: ./backend
+        run: npx eslint .
 
-      # Run Frontend Tests (if frontend exists)
       - name: Run Frontend Tests
+        working-directory: ./frontend
         run: |
-          if [ -d "frontend" ]; then
-            cd frontend
+          if npm run | grep -q "test"; then
             npm run test
           else
-            echo "Frontend folder not found! Skipping tests..."
+            echo "No test script found in package.json. Skipping tests..."
           fi
 
-      # Run Frontend Type Check (if frontend exists)
       - name: Run Frontend Type Check
-        run: |
-          if [ -d "frontend" ]; then
-            cd frontend
-            npm run typescript:check
-          else
-            echo "Frontend folder not found! Skipping type checking..."
-          fi
+        working-directory: ./frontend
+        run: npm run typescript:check
 
-      # Run Frontend Linting (if frontend exists)
       - name: Run Frontend Linting
-        run: |
-          if [ -d "frontend" ]; then
-            cd frontend
-            npm run lint
-          else
-            echo "Frontend folder not found! Skipping linting..."
-          fi
+        working-directory: ./frontend
+        run: npm run lint
 
-      # Build Backend (if backend exists)
       - name: Build Backend
-        run: |
-          if [ -d "backend" ]; then
-            cd backend
-            npm run build
-          else
-            echo "Backend folder not found! Skipping build..."
-          fi
+        working-directory: ./backend
+        run: npm run build
 
-      # Build Frontend (if frontend exists)
       - name: Build Frontend
-        run: |
-          if [ -d "frontend" ]; then
-            cd frontend
-            npm run build
-          else
-            echo "Frontend folder not found! Skipping build..."
-          fi
+        working-directory: ./frontend
+        run: npm run build
 
-      # Cache build artifacts (only if they exist)
-      - name: Cache Build Artifacts
+      - name: Cache build artifacts
         uses: actions/cache@v3
         with:
           path: |
@@ -171,7 +118,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download Build Artifacts
+      - name: Download build artifacts
         uses: actions/cache@v3
         with:
           path: |
@@ -179,7 +126,7 @@ jobs:
             backend/dist
           key: ${{ runner.os }}-build-${{ github.sha }}
 
-      - name: Deploy to Production
+      - name: Deploy to production
         run: |
           echo "Deploying to production..."
           # Add your deployment steps here based on your hosting platform
