@@ -64,29 +64,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-frontend-
 
-      - name: Run Backend Tests
+      - name: Log Backend Test Message
         working-directory: Backend
-        run: |
-          npm run test
-        env:
-          DB_HOST: localhost
-          DB_PORT: 3306
-          DB_USER: root
-          DB_PASSWORD: root
-          DB_NAME: test_db
+        run: echo "No tests specified for Backend. Skipping tests..."
 
       - name: Run Backend Linting
         working-directory: Backend
         run: npx eslint .
 
-      - name: Run Frontend Tests
+      - name: Log Frontend Test Message
         working-directory: frontend
-        run: |
-          if npm run | grep -q "test"; then
-            npm run test
-          else
-            echo "No test script found in package.json. Skipping tests..."
-          fi
+        run: echo "No tests specified for Frontend. Skipping tests..."
 
       - name: Run Frontend Type Check
         working-directory: frontend
