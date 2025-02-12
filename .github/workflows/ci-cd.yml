@@ -28,7 +28,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Install dependencies before setting up Node.js to ensure lock files are present
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Install dependencies without caching first
       - name: Install Backend Dependencies
         working-directory: ./backend
         run: |
@@ -39,20 +44,22 @@ jobs:
         working-directory: ./frontend
         run: npm install
 
-      # Now set up Node.js with the lock files in place
-      - name: Setup Node.js for Backend
-        uses: actions/setup-node@v3
+      # Setup caching after dependencies are installed
+      - name: Cache Backend Dependencies
+        uses: actions/cache@v3
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: './backend/package-lock.json'
+          path: ./backend/node_modules
+          key: ${{ runner.os }}-backend-${{ hashFiles('./backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-
 
-      - name: Setup Node.js for Frontend
-        uses: actions/setup-node@v3
+      - name: Cache Frontend Dependencies
+        uses: actions/cache@v3
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: './frontend/package-lock.json'
+          path: ./frontend/node_modules
+          key: ${{ runner.os }}-frontend-${{ hashFiles('./frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-
 
       - name: Run Backend Tests
         working-directory: ./backend
@@ -119,5 +126,4 @@ jobs:
           echo "Deploying to production..."
           # Add your deployment steps here based on your hosting platform
         env:
-          # Add any necessary deployment credentials/tokens here
           NODE_ENV: production
