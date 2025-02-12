@@ -2,32 +2,39 @@ version: '3.8'
 
 services:
   backend:
-    build: 
-      context: ./Backend
+    build:
+      context: ./backend
     ports:
       - "3000:3000"
-    environment:
-      - DATABASE_URL=mysql://root:Queen369963@db:3306/ReviewApp
-      - JWT_SECRET=there blah blah
+    env_file:
+      - .env
     volumes:
-      - ./backend:/app
+      - backend_data:/app
       - /app/node_modules
     depends_on:
       - db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   frontend:
     build:
-      context: ./reviewnow
+      context: ./frontend
     ports:
       - "5173:5173"
-    environment:
-      - VITE_SUPABASE_URL=https://teyasgrbblivanmpanvz.supabase.co
-      - VITE_SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRleWFzZ3JiYmxpdmFubXBhbnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMTY2MDIsImV4cCI6MjA1NDY5MjYwMn0.338baoGBNH9udD2cRG5vsZRS03Lr5He4EcZEahh67B8
+    env_file:
+      - .env
     volumes:
-      - ./frontend:/app
+      - frontend_data:/app
       - /app/node_modules
     depends_on:
       - backend
+    networks:
+      - app-network
 
   db:
     image: mysql:8
@@ -38,6 +45,14 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
 
 volumes:
   mysql_data:
+  backend_data:
+  frontend_data:
+
+networks:
+  app-network:
+    driver: bridge

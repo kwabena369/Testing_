@@ -1,0 +1,84 @@
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install Backend Dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Install Frontend Dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Run Backend Linting
+      working-directory: ./backend
+      run: |
+        npm install eslint --save-dev
+        npx eslint .
+
+    - name: Run Frontend Type Check
+      working-directory: ./frontend
+      run: npm run typescript:check
+
+    - name: Build Frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Run Frontend Linting
+      working-directory: ./frontend
+      run: npm run lint
+
+    - name: Cache build artifacts
+      uses: actions/cache@v2
+      with:
+        path: |
+          frontend/dist
+          backend/dist
+        key: ${{ runner.os }}-build-${{ github.sha }}
+
+  deploy:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "Add your deployment steps here"
+        # Example: Deploy to a cloud platform
+        # - AWS Elastic Beanstalk
+        # - Vecel
+        # - Digital Ocean
+        # etc.
