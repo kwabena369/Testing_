@@ -35,13 +35,13 @@ jobs:
 
       # Install dependencies
       - name: Install Backend Dependencies
-        working-directory: ./backend
+        working-directory: backend
         run: |
           npm install
           npm install eslint --save-dev
 
       - name: Install Frontend Dependencies
-        working-directory: ./frontend
+        working-directory: frontend
         run: npm install
 
       # Setup caching
@@ -62,7 +62,7 @@ jobs:
             ${{ runner.os }}-frontend-
 
       - name: Run Backend Tests
-        working-directory: ./backend
+        working-directory: backend
         run: |
           npm run test
         env:
@@ -73,11 +73,11 @@ jobs:
           DB_NAME: test_db
 
       - name: Run Backend Linting
-        working-directory: ./backend
+        working-directory: backend
         run: npx eslint .
 
       - name: Run Frontend Tests
-        working-directory: ./frontend
+        working-directory: frontend
         run: |
           if npm run | grep -q "test"; then
             npm run test
@@ -86,19 +86,19 @@ jobs:
           fi
 
       - name: Run Frontend Type Check
-        working-directory: ./frontend
+        working-directory: frontend
         run: npm run typescript:check
 
       - name: Run Frontend Linting
-        working-directory: ./frontend
+        working-directory: frontend
         run: npm run lint
 
       - name: Build Backend
-        working-directory: ./backend
+        working-directory: backend
         run: npm run build
 
       - name: Build Frontend
-        working-directory: ./frontend
+        working-directory: frontend
         run: npm run build
 
       - name: Cache build artifacts
