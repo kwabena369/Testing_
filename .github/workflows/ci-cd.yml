@@ -1,11 +1,10 @@
-# .github/workflows/ci-cd.yml
 name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test-and-build:
@@ -26,47 +25,75 @@ jobs:
         node-version: [18.x]
 
     steps:
-    - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+      - name: Setup Node.js for Backend
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
 
-    - name: Install Backend Dependencies
-      working-directory: ./backend
-      run: npm ci
+      - name: Setup Node.js for Frontend
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
 
-    - name: Install Frontend Dependencies
-      working-directory: ./frontend
-      run: npm ci
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm install eslint --save-dev
 
-    - name: Run Backend Linting
-      working-directory: ./backend
-      run: |
-        npm install eslint --save-dev
-        npx eslint .
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
 
-    - name: Run Frontend Type Check
-      working-directory: ./frontend
-      run: npm run typescript:check
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: |
+          npm run test
+        env:
+          DB_HOST: localhost
+          DB_PORT: 3306
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: test_db
 
-    - name: Build Frontend
-      working-directory: ./frontend
-      run: npm run build
+      - name: Run Backend Linting
+        working-directory: ./backend
+        run: npx eslint .
 
-    - name: Run Frontend Linting
-      working-directory: ./frontend
-      run: npm run lint
+      - name: Run Frontend Tests
+        working-directory: ./frontend
+        run: npm run test
 
-    - name: Cache build artifacts
-      uses: actions/cache@v2
-      with:
-        path: |
-          frontend/dist
-          backend/dist
-        key: ${{ runner.os }}-build-${{ github.sha }}
+      - name: Run Frontend Type Check
+        working-directory: ./frontend
+        run: npm run typescript:check
+
+      - name: Run Frontend Linting
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Build Backend
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            frontend/dist
+            backend/dist
+          key: ${{ runner.os }}-build-${{ github.sha }}
 
   deploy:
     needs: test-and-build
@@ -74,11 +101,23 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-    - name: Deploy to production
-      run: |
-        echo "Add your deployment steps here"
-        # Example: Deploy to a cloud platform
-        # - AWS Elastic Beanstalk
-        # - Vecel
-        # - Digital Ocean
-        # etc.
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            frontend/dist
+            backend/dist
+          key: ${{ runner.os }}-build-${{ github.sha }}
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production..."
+          # Add your deployment steps here based on your hosting platform
+          # Examples:
+          # - AWS Elastic Beanstalk deployment
+          # - Vercel deployment
+          # - Digital Ocean deployment
+  
